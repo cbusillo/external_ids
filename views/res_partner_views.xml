@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Partner Form View Extension -->
+    <record id="view_partner_form_external_ids" model="ir.ui.view">
+        <field name="name">res.partner.form.external.ids</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="External IDs" name="external_ids">
+                    <field name="external_ids" context="{'default_res_model': 'res.partner', 'default_res_id': id}">
+                        <list editable="bottom">
+                            <field name="system_id" options="{'no_create': True}"/>
+                            <field name="external_id"/>
+                            <field name="last_sync" readonly="1"/>
+                            <field name="active" widget="boolean_toggle"/>
+                            <button name="action_sync" type="object" string="Sync" icon="fa-refresh"/>
+                        </list>
+                        <form>
+                            <group>
+                                <field name="system_id" options="{'no_create': True}"/>
+                                <field name="external_id"/>
+                                <field name="notes"/>
+                                <field name="last_sync" readonly="1"/>
+                                <field name="active"/>
+                            </group>
+                        </form>
+                    </field>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>

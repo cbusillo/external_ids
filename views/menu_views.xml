@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main Menu -->
+    <menuitem
+            id="menu_external_ids_root"
+            name="External IDs"
+            sequence="50"
+            groups="base.group_system"
+            web_icon="external_ids,static/description/icon.png"/>
+
+    <!-- Configuration Menu -->
+    <menuitem
+            id="menu_external_ids_config"
+            name="Configuration"
+            parent="menu_external_ids_root"
+            sequence="100"/>
+
+    <!-- External Systems Menu -->
+    <menuitem
+            id="menu_external_systems"
+            name="External Systems"
+            parent="menu_external_ids_config"
+            action="action_external_system"
+            sequence="10"/>
+
+    <!-- External IDs Menu -->
+    <menuitem
+            id="menu_external_ids"
+            name="All External IDs"
+            parent="menu_external_ids_root"
+            action="action_external_id"
+            sequence="10"/>
+
+    <!-- Quick access from Settings menu -->
+    <menuitem
+            id="menu_external_ids_settings"
+            name="External IDs"
+            parent="base.menu_administration"
+            sequence="45"/>
+
+    <menuitem
+            id="menu_external_systems_settings"
+            name="External Systems"
+            parent="menu_external_ids_settings"
+            action="action_external_system"
+            sequence="10"/>
+
+    <menuitem
+            id="menu_all_external_ids_settings"
+            name="External IDs"
+            parent="menu_external_ids_settings"
+            action="action_external_id"
+            sequence="20"/>
+</odoo>
