@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class ExternalSystem(models.Model):
@@ -8,7 +9,7 @@ class ExternalSystem(models.Model):
     _rec_name = "name"
 
     name = fields.Char(required=True, help="Name of the external system (e.g., Discord, RepairShopr)")
-    code = fields.Char(required=True, help="Unique code for the system (e.g., discord, repairshoppr)")
+    code = fields.Char(required=True, help="Unique code for the system (e.g., discord, repairshopr)")
     description = fields.Text(help="Description of the external system and its purpose")
     url = fields.Char(string="URL", help="Base URL of the external system")
     active = fields.Boolean(default=True, help="If unchecked, this system will not be available for selection")
@@ -27,3 +28,12 @@ class ExternalSystem(models.Model):
     def _compute_external_id_count(self) -> None:
         for system in self:
             system.external_id_count = len(system.external_ids)
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_prevent_when_has_ids(self) -> None:
+        for rec in self:
+            if rec.external_ids:
+                raise ValidationError(
+                    "Cannot delete an External System that still has External IDs. "
+                    "Archive the system or remove the related IDs first."
+                )

@@ -1,5 +1,5 @@
-from typing import Any, Optional
 from odoo import models, fields, api
+from odoo.osv import expression
 from odoo.exceptions import ValidationError
 
 
@@ -21,9 +21,14 @@ class ExternalId(models.Model):
     system_id = fields.Many2one(
         "external.system", string="External System", required=True, ondelete="restrict", domain=[("active", "=", True)]
     )
-    external_id = fields.Char(string="External ID", required=True, help="The ID of this record in the external system")
-    display_name = fields.Char(compute="_compute_display_name", store=True)
-    record_name = fields.Char(compute="_compute_record_name", store=True)
+    external_id = fields.Char(
+        string="External ID",
+        required=True,
+        index=True,
+        help="The ID of this record in the external system",
+    )
+    display_name = fields.Char(compute="_compute_display_name")
+    record_name = fields.Char(compute="_compute_record_name")
 
     notes = fields.Text(help="Additional notes about this external ID")
     active = fields.Boolean(default=True, help="If unchecked, this external ID is considered inactive")
@@ -37,6 +42,19 @@ class ExternalId(models.Model):
         ),
         ("unique_external_id_per_system", "UNIQUE(system_id, external_id)", "This external ID already exists for this system!"),
     ]
+
+    @api.model_create_multi
+    def create(self, vals_list: "list[odoo.values.external_id]") -> "odoo.model.external_id":
+        for vals in vals_list:
+            if "external_id" in vals and isinstance(vals["external_id"], str):
+                vals["external_id"] = vals["external_id"].strip()
+        return super().create(vals_list)
+
+    def write(self, vals: "odoo.values.external_id") -> bool:
+        if "external_id" in vals and isinstance(vals["external_id"], str):
+            vals = dict(vals)
+            vals["external_id"] = vals["external_id"].strip()
+        return super().write(vals)
 
     @api.model
     def _reference_models(self) -> list[tuple[str, str]]:
@@ -68,7 +86,10 @@ class ExternalId(models.Model):
                 record.res_id = False
 
     @staticmethod
-    def _search_reference(operator: str, value: Any) -> list[tuple[str, str, Any]]:
+    def _search_reference(
+        operator: str,
+        value: "odoo.model.res_partner | odoo.model.hr_employee | odoo.model.product_product | None",
+    ) -> list[tuple[str, str, str | int]]:
         if operator == "=" and value:
             return [("res_model", "=", value._name), ("res_id", "=", value.id)]
         return []
@@ -88,7 +109,7 @@ class ExternalId(models.Model):
             else:
                 record.record_name = ""
 
-    @api.depends("system_id", "external_id", "record_name")
+    @api.depends("system_id.name", "system_id.id_prefix", "external_id", "record_name")
     def _compute_display_name(self) -> None:
         for record in self:
             if record.system_id and record.external_id:
@@ -110,7 +131,7 @@ class ExternalId(models.Model):
                         f"for {record.system_id.name}: {record.system_id.id_format}"
                     )
 
-    def action_sync(self) -> dict[str, Any]:
+    def action_sync(self) -> "odoo.values.ir_actions_client":
         self.ensure_one()
         self.last_sync = fields.Datetime.now()
         return {
@@ -124,7 +145,9 @@ class ExternalId(models.Model):
         }
 
     @api.model
-    def get_record_by_external_id(self, system_code: str, external_id: str) -> Optional[models.Model]:
+    def get_record_by_external_id(
+        self, system_code: str, external_id: str
+    ) -> "odoo.model.res_partner | odoo.model.hr_employee | odoo.model.product_product | None":
         System = self.env["external.system"]
         system = System.search([("code", "=", system_code)], limit=1)
 
@@ -144,6 +167,27 @@ class ExternalId(models.Model):
                 pass
 
         return None
+
+    def name_search(
+        self, name: str = "", args: list | None = None, operator: str = "ilike", limit: int = 80
+    ) -> list[tuple[int, str]]:
+        base = list(args or [])
+        if not name:
+            records = self.search(base, limit=limit)
+            return [(record.id, record.display_name or "") for record in records]
+
+        name = name.strip()
+        if ":" in name:
+            sys_part, _, ext_part = name.partition(":")
+            sys = sys_part.strip()
+            ext = ext_part.strip()
+            or_domain = [("system_id.name", "ilike", sys), ("system_id.code", "ilike", sys)]
+            dom = expression.AND([base, expression.OR([[d] for d in or_domain]), [("external_id", operator, ext)]])
+        else:
+            dom = expression.AND([base, [("external_id", operator, name)]])
+
+        records = self.search(dom, limit=limit)
+        return [(record.id, record.display_name or "") for record in records]
 
     @api.ondelete(at_uninstall=False)
     def _unlink_except_active(self) -> None:

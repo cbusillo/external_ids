@@ -16,16 +16,25 @@ class ExternalIdMixin(models.AbstractModel):
 
     def _compute_external_ids(self) -> None:
         ExternalId = self.env["external.id"]
+        if not self:
+            return
+        domain = [("res_model", "=", self._name), ("res_id", "in", self.ids)]
+        grouped: dict[int, models.Model] = {}
+        for rec in ExternalId.search(domain):
+            if rec.res_id in grouped:
+                grouped[rec.res_id] |= rec
+            else:
+                grouped[rec.res_id] = rec
         for record in self:
-            record.external_ids = ExternalId.search([("res_model", "=", record._name), ("res_id", "=", record.id)])
+            record.external_ids = grouped.get(record.id, self.env["external.id"])
 
     def _inverse_external_ids(self) -> None:
         pass
 
-    def get_external_system_id(self, system_code: str) -> str | bool:
+    def get_external_system_id(self, system_code: str) -> str | None:
         self.ensure_one()
         external_id = self.external_ids.filtered(lambda x: x.system_id.code == system_code and x.active)
-        return external_id.external_id if external_id else False
+        return external_id.external_id if external_id else None
 
     def set_external_id(self, system_code: str, external_id_value: str) -> bool:
         self.ensure_one()
@@ -38,15 +47,17 @@ class ExternalIdMixin(models.AbstractModel):
 
         existing = self.external_ids.filtered(lambda x: x.system_id == system)
 
+        sanitized = (external_id_value or "").strip()
+
         if existing:
-            existing.external_id = external_id_value
+            existing.external_id = sanitized
         else:
             ExternalId.create(
                 {
                     "res_model": self._name,
                     "res_id": self.id,
                     "system_id": system.id,
-                    "external_id": external_id_value,
+                    "external_id": sanitized,
                 }
             )
 

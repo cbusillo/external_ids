@@ -141,7 +141,7 @@ class TestExternalIdMixin(UnitTestCase):
     def test_inactive_external_ids_not_returned(self) -> None:
         partner = self.Partner.create({"name": "Inactive Test"})
 
-        external_id = self.ExternalId.create(
+        self.ExternalId.create(
             {
                 "res_model": "res.partner",
                 "res_id": partner.id,
