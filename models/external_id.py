@@ -1,6 +1,6 @@
 from odoo import models, fields, api
 from odoo.osv import expression
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, AccessError
 
 
 class ExternalId(models.Model):
@@ -34,6 +34,15 @@ class ExternalId(models.Model):
     active = fields.Boolean(default=True, help="If unchecked, this external ID is considered inactive")
     last_sync = fields.Datetime(help="Last time this ID was synchronized with the external system")
 
+    company_id = fields.Many2one(
+        "res.company",
+        compute="_compute_company_id",
+        store=True,
+        index=True,
+        readonly=True,
+        help="Owning company derived from the referenced record when available.",
+    )
+
     _sql_constraints = [
         (
             "unique_record_per_system",
@@ -56,16 +65,34 @@ class ExternalId(models.Model):
             vals["external_id"] = vals["external_id"].strip()
         return super().write(vals)
 
+    @api.depends("res_model", "res_id")
+    def _compute_company_id(self) -> None:
+        for rec in self:
+            company = False
+            if rec.res_model and rec.res_id:
+                try:
+                    target = self.env[rec.res_model].browse(rec.res_id)
+                    if target.exists() and "company_id" in target._fields:
+                        company = target.company_id.id or False
+                except Exception:
+                    company = False
+            rec.company_id = company
+
     @api.model
     def _reference_models(self) -> list[tuple[str, str]]:
-        reference_models = []
+        cache = self.env.registry.__dict__.setdefault("_extid_ref_models_cache", {})
+        key = self.env.uid
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        res: list[tuple[str, str]] = []
         for model_name in self.env:
             model = self.env[model_name]
-            if hasattr(model, "_inherit") and "external.id.mixin" in (
-                model._inherit if isinstance(model._inherit, list) else [model._inherit]
-            ):
-                reference_models.append((model_name, model._description or model_name))
-        return reference_models
+            inherit = model._inherit if isinstance(model._inherit, list) else [model._inherit]
+            if "external.id.mixin" in inherit:
+                res.append((model_name, model._description or model_name))
+        cache[key] = res
+        return res
 
     @api.depends("res_model", "res_id")
     def _compute_reference(self) -> None:
@@ -193,3 +220,26 @@ class ExternalId(models.Model):
     def _unlink_except_active(self) -> None:
         if any(record.active for record in self):
             raise ValidationError("Cannot delete active external IDs. Please archive them first.")
+
+    def check_access_rule(self, operation: str) -> None:  # type: ignore[override]
+        super().check_access_rule(operation)
+        if operation not in {"read", "write", "unlink"}:
+            return
+        # Ensure the current user can at least read the referenced record
+        # to avoid leaking existence across models.
+        for rec in self:
+            if not rec.res_model or not rec.res_id:
+                continue
+            try:
+                target = self.env[rec.res_model].browse(rec.res_id)
+            except KeyError:
+                # Unknown model; fall back to standard rules
+                continue
+            if not target:
+                continue
+            try:
+                # Only check read access; editing the linkage shouldn't require write on the target
+                target.check_access_rights("read")
+                target.check_access_rule("read")
+            except AccessError:
+                raise

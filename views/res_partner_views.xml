@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <notebook position="inside">
-                <page string="External IDs" name="external_ids">
+                <page string="External IDs" name="external_ids" groups="base.group_partner_manager">
                     <field name="external_ids" context="{'default_res_model': 'res.partner', 'default_res_id': id}">
                         <list editable="bottom">
                             <field name="system_id" options="{'no_create': True}"/>

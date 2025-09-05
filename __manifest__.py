@@ -18,6 +18,7 @@
     "depends": ["hr", "base", "product"],
     "data": [
         "security/ir.model.access.csv",
+        "security/ir.rule.xml",
         "views/external_system_views.xml",
         "views/external_id_views.xml",
         "views/hr_employee_views.xml",
