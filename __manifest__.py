@@ -26,7 +26,6 @@
         "views/product_product_views.xml",
         "views/menu_views.xml",
     ],
-    "images": ["static/description/icon.png"],
     "installable": True,
     "application": False,
 }
