@@ -19,7 +19,7 @@ class ExternalIdMixin(models.AbstractModel):
         ExternalId = self.env["external.id"]
         if not self:
             return
-        domain = [("res_model", "=", self._name), ("res_id", "in", self.ids)]
+        domain = [("res_model", "=", self._name), ("res_id", "in", self.ids), ("active", "=", True)]
         grouped: dict[int, models.Model] = {}
         for rec in ExternalId.search(domain):
             if rec.res_id in grouped:
@@ -30,7 +30,39 @@ class ExternalIdMixin(models.AbstractModel):
             record.external_ids = grouped.get(record.id, self.env["external.id"])
 
     def _inverse_external_ids(self) -> None:
-        pass
+        ExternalId = self.env["external.id"]
+        for rec in self:
+            if not rec.id:
+                continue
+
+            desired = ExternalId.browse()  # the records that should remain linked after save
+
+            # Create or update listed External IDs from the UI
+            for ext in rec.external_ids:
+                # Collect incoming values from the virtual line (works for both new and existing lines)
+                vals = ext._convert_to_write(ext._cache)
+                vals["res_model"] = rec._name
+                vals["res_id"] = rec.id
+
+                if not ext.id:
+                    new_rec = ExternalId.create(vals)
+                    desired |= new_rec
+                else:
+                    # Persist edits made inline (e.g., system_id/external_id/active/notes)
+                    ext.write(vals)
+                    desired |= ext
+
+            # Remove links that were dropped in the UI by archiving the extras
+            linked = ExternalId.search(
+                [
+                    ("res_model", "=", rec._name),
+                    ("res_id", "=", rec.id),
+                ]
+            )
+            to_unlink = linked - desired
+            if to_unlink:
+                # Archive instead of unlink to honor data retention rule
+                to_unlink.write({"active": False})
 
     def get_external_system_id(self, system_code: str) -> str | None:
         self.ensure_one()
