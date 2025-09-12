@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Partner Form View Extension -->
     <record id="view_partner_form_external_ids" model="ir.ui.view">
         <field name="name">res.partner.form.external.ids</field>
         <field name="model">res.partner</field>
@@ -31,3 +30,4 @@
         </field>
     </record>
 </odoo>
+

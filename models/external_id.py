@@ -34,13 +34,25 @@ class ExternalId(models.Model):
     active = fields.Boolean(default=True, help="If unchecked, this external ID is considered inactive")
     last_sync = fields.Datetime(help="Last time this ID was synchronized with the external system")
 
+    company_id = fields.Many2one(
+        "res.company",
+        compute="_compute_company_id",
+        store=True,
+        index=True,
+        help="Company of the referenced record, if any.",
+    )
+
     _sql_constraints = [
         (
             "unique_record_per_system",
             "UNIQUE(res_model, res_id, system_id)",
             "Each record can have only one ID per external system!",
         ),
-        ("unique_external_id_per_system", "UNIQUE(system_id, external_id)", "This external ID already exists for this system!"),
+        (
+            "unique_external_id_per_system",
+            "UNIQUE(system_id, external_id)",
+            "This external ID already exists for this system!",
+        ),
     ]
 
     @api.model_create_multi
@@ -108,6 +120,20 @@ class ExternalId(models.Model):
                     record.record_name = f"[Invalid {record.res_model}]"
             else:
                 record.record_name = ""
+
+    @api.depends("res_model", "res_id")
+    def _compute_company_id(self) -> None:
+        for record in self:
+            company = False
+            if record.res_model and record.res_id:
+                try:
+                    model = self.env[record.res_model]
+                except KeyError:
+                    model = None
+                if model and "company_id" in model._fields:
+                    ref = model.browse(record.res_id)
+                    company = ref.company_id.id if ref.exists() else False
+            record.company_id = company
 
     @api.depends("system_id.name", "system_id.id_prefix", "external_id", "record_name")
     def _compute_display_name(self) -> None:

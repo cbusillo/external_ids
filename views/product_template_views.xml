@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Product Form View Extension -->
-    <record id="view_product_form_external_ids" model="ir.ui.view">
-        <field name="name">product.product.form.external.ids</field>
-        <field name="model">product.product</field>
-        <field name="inherit_id" ref="product.product_normal_form_view"/>
+    <record id="view_product_template_form_external_ids" model="ir.ui.view">
+        <field name="name">product.template.form.external.ids</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
         <field name="arch" type="xml">
-            <notebook position="inside">
+            <xpath expr="//notebook" position="inside">
                 <page string="External IDs" name="external_ids">
-                    <field name="external_ids" context="{'default_res_model': 'product.product', 'default_res_id': id}">
+                    <field name="external_ids"
+                           context="{'default_res_model': 'product.template', 'default_res_id': id}">
                         <list editable="bottom">
                             <field name="system_id" options="{'no_create': True}"/>
                             <field name="external_id"/>
@@ -27,7 +27,7 @@
                         </form>
                     </field>
                 </page>
-            </notebook>
+            </xpath>
         </field>
     </record>
 </odoo>
