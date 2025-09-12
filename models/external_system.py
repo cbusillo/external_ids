@@ -11,12 +11,14 @@ class ExternalSystem(models.Model):
     name = fields.Char(required=True, help="Name of the external system (e.g., Discord, RepairShopr)")
     code = fields.Char(required=True, help="Unique code for the system (e.g., discord, repairshopr)")
     description = fields.Text(help="Description of the external system and its purpose")
-    url = fields.Char(string="URL", help="Base URL of the external system")
+    url = fields.Char(string="Base URL", help="Base URL of the external system")
     active = fields.Boolean(default=True, help="If unchecked, this system will not be available for selection")
     sequence = fields.Integer(default=10, help="Used to order the systems in views")
     id_format = fields.Char(help="Expected format or pattern for IDs in this system (e.g., regex pattern)")
     id_prefix = fields.Char(string="ID Prefix", help="Prefix to add when displaying the ID")
+    # Legacy template fields removed; use url_templates instead
     external_ids = fields.One2many("external.id", "system_id", string="External IDs")
+    url_templates = fields.One2many("external.system.url", "system_id", string="URL Templates")
     external_id_count = fields.Integer(string="Number of Records", compute="_compute_external_id_count")
 
     _sql_constraints = [

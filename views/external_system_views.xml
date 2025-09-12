@@ -33,7 +33,7 @@
                     <group>
                         <group>
                             <field name="code"/>
-                            <field name="url" widget="url"/>
+                            <field name="url" widget="url" string="Base URL"/>
                             <field name="sequence"/>
                         </group>
                         <group>
@@ -42,10 +42,38 @@
                             <field name="active" widget="boolean_toggle"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="URL Templates">
+                            <field name="url_templates">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="res_model_id"/>
+                                    <field name="template" placeholder="e.g., {base}/admin/products/{id}"/>
+                                </list>
+                                <form>
+                                    <group>
+                                        <field name="active"/>
+                                        <field name="name"/>
+                                        <field name="code" placeholder="e.g., store, admin, ticket" readonly="id"/>
+                                        <field name="res_model_id" placeholder="Limit to a model (optional)"/>
+                                        <field name="template" placeholder="e.g., {base}/admin/products/{id}"/>
+                                    </group>
+                                    <footer>
+                                        <button name="action_open_rename_wizard" type="object" string="Rename Key"
+                                                class="btn-secondary"
+                                                attrs="{'invisible': ['|', ('id', '=', False), ('code', '=', False)]}"/>
+                                    </footer>
+                                </form>
+                            </field>
+                        </page>
+                    </notebook>
                     <group>
                         <field name="description" placeholder="Describe the purpose of this external system..."/>
                     </group>
-                    <notebook>
+                    <notebook position="inside">
                         <page string="External IDs" name="external_ids">
                             <field name="external_ids" readonly="1">
                                 <list>
@@ -97,4 +125,8 @@
             </p>
         </field>
     </record>
+
+    <!-- Menu for External Systems (parent declared in menu_views.xml) -->
+    <menuitem id="menu_external_systems" name="External Systems" parent="menu_external_ids_config"
+              action="action_external_system" sequence="10"/>
 </odoo>

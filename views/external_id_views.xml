@@ -31,7 +31,8 @@
                         <group>
                             <field name="system_id" options="{'no_create': True}"/>
                             <field name="external_id"/>
-                            <field name="reference" widget="reference"/>
+                            <field name="reference" widget="reference" options="{'no_open': True}" colspan="2"
+                                   placeholder="Type to search a record"/>
                         </group>
                         <group>
                             <field name="last_sync"/>
@@ -90,4 +91,8 @@
             </p>
         </field>
     </record>
+
+    <!-- Menu for All External IDs (parent declared in menu_views.xml) -->
+    <menuitem id="menu_external_ids" name="All External IDs" parent="menu_external_ids_root" action="action_external_id"
+              sequence="10"/>
 </odoo>

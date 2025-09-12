@@ -70,14 +70,31 @@ class ExternalId(models.Model):
 
     @api.model
     def _reference_models(self) -> list[tuple[str, str]]:
-        reference_models = []
+        # If a default target model is provided in context (opened from a parent),
+        # restrict the selection to that model to avoid cross-model confusion.
+        ctx = self.env.context or {}
+        default_model = ctx.get("default_res_model")
+        if default_model:
+            try:
+                label = self.env[default_model]._description or default_model
+            except Exception:  # pragma: no cover
+                label = default_model
+            return [(default_model, label)]
+
+        # Otherwise, detect eligible models by the presence of the mixin action.
+        items: list[tuple[str, str]] = []
         for model_name in self.env:
-            model = self.env[model_name]
-            if hasattr(model, "_inherit") and "external.id.mixin" in (
-                model._inherit if isinstance(model._inherit, list) else [model._inherit]
-            ):
-                reference_models.append((model_name, model._description or model_name))
-        return reference_models
+            try:
+                model = self.env[model_name]
+            except Exception:  # pragma: no cover - defensive registry guard
+                continue
+            if getattr(model, "_abstract", False) or getattr(model, "_transient", False):
+                continue
+            if hasattr(model, "action_view_external_ids"):
+                label = model._description or model_name
+                items.append((model_name, label))
+        items.sort(key=lambda x: x[1].lower())
+        return items
 
     @api.depends("res_model", "res_id")
     def _compute_reference(self) -> None:
@@ -90,9 +107,19 @@ class ExternalId(models.Model):
     def _inverse_reference(self) -> None:
         for record in self:
             if record.reference:
-                ref_model = record.reference
-                record.res_model = getattr(ref_model, "_name", False)
-                record.res_id = getattr(ref_model, "id", False)
+                ref_val = record.reference
+                # The reference widget may provide a string like "model,id"
+                # or a browsable recordset depending on context.
+                if isinstance(ref_val, str):
+                    model_name, _, rec_id = ref_val.partition(",")
+                    record.res_model = model_name or False
+                    try:
+                        record.res_id = int(rec_id) if rec_id else False
+                    except ValueError:
+                        record.res_id = False
+                else:
+                    record.res_model = getattr(ref_val, "_name", False)
+                    record.res_id = getattr(ref_val, "id", False)
             else:
                 record.res_model = False
                 record.res_id = False

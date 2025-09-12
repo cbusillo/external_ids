@@ -5,29 +5,13 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
-            <notebook position="inside">
-                <page string="External IDs" name="external_ids">
-                    <field name="external_ids" context="{'default_res_model': 'res.partner', 'default_res_id': id}">
-                        <list editable="bottom">
-                            <field name="system_id" options="{'no_create': True}"/>
-                            <field name="external_id"/>
-                            <field name="last_sync" readonly="1"/>
-                            <field name="active" widget="boolean_toggle"/>
-                            <button name="action_sync" type="object" string="Sync" icon="fa-refresh"/>
-                        </list>
-                        <form>
-                            <group>
-                                <field name="system_id" options="{'no_create': True}"/>
-                                <field name="external_id"/>
-                                <field name="notes"/>
-                                <field name="last_sync" readonly="1"/>
-                                <field name="active"/>
-                            </group>
-                        </form>
-                    </field>
-                </page>
-            </notebook>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_external_ids" type="object" class="oe_stat_button" icon="fa-link">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">External IDs</span>
+                    </div>
+                </button>
+            </xpath>
         </field>
     </record>
 </odoo>
-

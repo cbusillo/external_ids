@@ -15,20 +15,8 @@
             parent="menu_external_ids_root"
             sequence="100"/>
 
-    <!-- External Systems Menu -->
-    <menuitem
-            id="menu_external_systems"
-            name="External Systems"
-            parent="menu_external_ids_config"
-            action="action_external_system"
-            sequence="10"/>
+    <!-- External Systems Menu is declared in external_system_views.xml (needs action present) -->
 
-    <!-- External IDs Menu -->
-    <menuitem
-            id="menu_external_ids"
-            name="All External IDs"
-            parent="menu_external_ids_root"
-            action="action_external_id"
-            sequence="10"/>
+    <!-- All External IDs menu declared in external_id_views.xml (needs action present) -->
 
 </odoo>

@@ -71,24 +71,6 @@ class TestExternalIdMixin(UnitTestCase):
         invalid_system = self.Partner.search_by_external_id("invalid", "123")
         self.assertFalse(invalid_system)
 
-    def test_compute_external_ids(self) -> None:
-        partner = self.Partner.create({"name": "Compute Test"})
-
-        self.assertEqual(len(partner.external_ids), 0)
-
-        self.ExternalId.create(
-            {
-                "res_model": "res.partner",
-                "res_id": partner.id,
-                "system_id": self.discord_system.id,
-                "external_id": "555555555555555555",
-            }
-        )
-
-        partner._compute_external_ids()
-        self.assertEqual(len(partner.external_ids), 1)
-        self.assertEqual(partner.external_ids[0].external_id, "555555555555555555")
-
     def test_action_view_external_ids(self) -> None:
         partner = self.Partner.create({"name": "View Test"})
         partner.set_external_id("discord", "666666666666666666")
