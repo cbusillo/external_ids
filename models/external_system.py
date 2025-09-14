@@ -16,6 +16,14 @@ class ExternalSystem(models.Model):
     sequence = fields.Integer(default=10, help="Used to order the systems in views")
     id_format = fields.Char(help="Expected format or pattern for IDs in this system (e.g., regex pattern)")
     id_prefix = fields.Char(string="ID Prefix", help="Prefix to add when displaying the ID")
+    applicable_model_ids = fields.Many2many(
+        "ir.model",
+        "external_system_ir_model_rel",
+        "system_id",
+        "model_id",
+        string="Applies To Models",
+        help=("Optional: limit where this system is selectable. If empty, the system is available for all models."),
+    )
     # Legacy template fields removed; use url_templates instead
     external_ids = fields.One2many("external.id", "system_id", string="External IDs")
     url_templates = fields.One2many("external.system.url", "system_id", string="URL Templates")

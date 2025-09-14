@@ -5,8 +5,9 @@
         <field name="name">external.id.list</field>
         <field name="model">external.id</field>
         <field name="arch" type="xml">
-            <list string="External IDs">
+            <list string="External IDs" editable="bottom">
                 <field name="system_id"/>
+                <field name="resource"/>
                 <field name="res_model"/>
                 <field name="record_name"/>
                 <field name="external_id"/>
@@ -30,6 +31,7 @@
                     <group>
                         <group>
                             <field name="system_id" options="{'no_create': True}"/>
+                            <field name="resource"/>
                             <field name="external_id"/>
                             <field name="reference" widget="reference" options="{'no_open': True}" colspan="2"
                                    placeholder="Type to search a record"/>

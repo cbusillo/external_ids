@@ -1,31 +1,38 @@
 from typing import Self
 
-from odoo import api, models
+from odoo import api, models, fields
 
 
 class ExternalIdMixin(models.AbstractModel):
     _name = "external.id.mixin"
     _description = "External ID Mixin"
 
-    def get_external_system_id(self, system_code: str) -> str | None:
+    external_ids = fields.One2many("external.id", "res_id", string="External IDs")
+
+    def get_external_system_id(self, system_code: str, resource: str | None = None) -> str | None:
         self.ensure_one()
         ExternalId = self.env["external.id"]
         System = self.env["external.system"]
         system = System.search([("code", "=", system_code)], limit=1)
         if not system:
             return None
+        dom = [
+            ("res_model", "=", self._name),
+            ("res_id", "=", self.id),
+            ("system_id", "=", system.id),
+            ("active", "=", True),
+        ]
+        if resource:
+            dom.append(("resource", "=", resource))
+        else:
+            dom.append(("resource", "=", "default"))
         rec = ExternalId.search(
-            [
-                ("res_model", "=", self._name),
-                ("res_id", "=", self.id),
-                ("system_id", "=", system.id),
-                ("active", "=", True),
-            ],
+            [*dom],
             limit=1,
         )
         return rec.external_id if rec else None
 
-    def set_external_id(self, system_code: str, external_id_value: str) -> bool:
+    def set_external_id(self, system_code: str, external_id_value: str, resource: str | None = None) -> bool:
         self.ensure_one()
         ExternalId = self.env["external.id"]
         System = self.env["external.system"]
@@ -36,12 +43,17 @@ class ExternalIdMixin(models.AbstractModel):
 
         sanitized = (external_id_value or "").strip()
 
+        dom = [
+            ("res_model", "=", self._name),
+            ("res_id", "=", self.id),
+            ("system_id", "=", system.id),
+        ]
+        if resource:
+            dom.append(("resource", "=", resource))
+        else:
+            dom.append(("resource", "=", "default"))
         existing = ExternalId.search(
-            [
-                ("res_model", "=", self._name),
-                ("res_id", "=", self.id),
-                ("system_id", "=", system.id),
-            ],
+            [*dom],
             limit=1,
         )
 
@@ -53,6 +65,7 @@ class ExternalIdMixin(models.AbstractModel):
                     "res_model": self._name,
                     "res_id": self.id,
                     "system_id": system.id,
+                    "resource": resource or "default",
                     "external_id": sanitized,
                     "active": True,
                 }
@@ -61,7 +74,7 @@ class ExternalIdMixin(models.AbstractModel):
         return True
 
     @api.model
-    def search_by_external_id(self, system_code: str, external_id_value: str) -> Self:
+    def search_by_external_id(self, system_code: str, external_id_value: str, resource: str | None = None) -> Self:
         ExternalId = self.env["external.id"]
         System = self.env["external.system"]
 
@@ -69,12 +82,17 @@ class ExternalIdMixin(models.AbstractModel):
         if not system:
             return self.browse()
 
+        dom = [
+            ("res_model", "=", self._name),
+            ("system_id", "=", system.id),
+            ("external_id", "=", external_id_value),
+        ]
+        if resource:
+            dom.append(("resource", "=", resource))
+        else:
+            dom.append(("resource", "=", "default"))
         external_id_record = ExternalId.search(
-            [
-                ("res_model", "=", self._name),
-                ("system_id", "=", system.id),
-                ("external_id", "=", external_id_value),
-            ],
+            [*dom],
             limit=1,
         )
 
@@ -97,15 +115,15 @@ class ExternalIdMixin(models.AbstractModel):
             },
         }
 
-    # URL helpers ----------------------------------------------------------
-    def _extract_numeric_id(self, external_id_value: str) -> str:
+    @staticmethod
+    def _extract_numeric_id(external_id_value: str) -> str:
         # Convert GraphQL-style GIDs like gid://shopify/Product/123456 to 123456
         import re
 
         m = re.search(r"/(\d+)$", external_id_value or "")
         return m.group(1) if m else (external_id_value or "")
 
-    def get_external_url(self, system_code: str, kind: str = "store") -> str | None:
+    def get_external_url(self, system_code: str, kind: str = "store", resource: str | None = None) -> str | None:
         self.ensure_one()
         System = self.env["external.system"]
         SystemUrl = self.env["external.system.url"]
@@ -115,15 +133,17 @@ class ExternalIdMixin(models.AbstractModel):
             return None
         # Prefer dynamic templates; fallback to legacy fields
         template = None
+        url_dom = [
+            ("system_id", "=", system.id),
+            ("code", "=", kind),
+            ("active", "=", True),
+            "|",
+            ("res_model_id", "=", False),
+            ("res_model_id.model", "=", self._name),
+        ]
+        # If the template defines a resource, prefer that; otherwise we will use given/default resource.
         urls = SystemUrl.search(
-            [
-                ("system_id", "=", system.id),
-                ("code", "=", kind),
-                ("active", "=", True),
-                "|",
-                ("res_model_id", "=", False),
-                ("res_model_id.model", "=", self._name),
-            ],
+            [*url_dom],
             order="res_model_id desc, sequence, id",
             limit=1,
         )
@@ -135,7 +155,9 @@ class ExternalIdMixin(models.AbstractModel):
         if not template:
             return None
 
-        ext_id = self.get_external_system_id(system_code)
+        # Determine which resource to use for ID lookup
+        res_key = resource or getattr(urls, "resource", False) or "default"
+        ext_id = self.get_external_system_id(system_code, res_key)
         if not ext_id:
             return None
 
@@ -156,7 +178,8 @@ class ExternalIdMixin(models.AbstractModel):
         self.ensure_one()
         system_code = (self.env.context or {}).get("external_system_code")
         kind = (self.env.context or {}).get("external_url_kind", "store")
-        url = self.get_external_url(system_code, kind)
+        resource = (self.env.context or {}).get("external_resource")
+        url = self.get_external_url(system_code, kind, resource)
         if not url:
             return {
                 "type": "ir.actions.client",

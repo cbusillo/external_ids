@@ -1,3 +1,5 @@
+from typing import Any
+
 from odoo import models, fields, api
 from odoo.osv import expression
 from odoo.exceptions import ValidationError
@@ -11,6 +13,13 @@ class ExternalId(models.Model):
 
     res_model = fields.Char(string="Model", required=True, index=True, help="The model this external ID belongs to")
     res_id = fields.Integer(string="Record ID", required=True, index=True, help="The ID of the record in the model")
+    resource = fields.Char(
+        string="Resource",
+        required=True,
+        default="default",
+        help="Dimension for multiple IDs per system per record (e.g., product, variant, customer, address)",
+        index=True,
+    )
     reference = fields.Reference(
         selection="_reference_models",
         compute="_compute_reference",
@@ -19,7 +28,11 @@ class ExternalId(models.Model):
     )
 
     system_id = fields.Many2one(
-        "external.system", string="External System", required=True, ondelete="restrict", domain=[("active", "=", True)]
+        "external.system",
+        string="External System",
+        required=True,
+        ondelete="restrict",
+        domain="[('active','=',True), '|', ('applicable_model_ids','=',False), ('applicable_model_ids.model','=', (context.get('default_res_model') or res_model))]",
     )
     external_id = fields.Char(
         string="External ID",
@@ -44,20 +57,43 @@ class ExternalId(models.Model):
 
     _sql_constraints = [
         (
-            "unique_record_per_system",
-            "UNIQUE(res_model, res_id, system_id)",
-            "Each record can have only one ID per external system!",
+            "unique_record_per_system_resource",
+            "UNIQUE(res_model, res_id, system_id, resource)",
+            "Each record can have only one ID per external system and resource!",
         ),
         (
-            "unique_external_id_per_system",
-            "UNIQUE(system_id, external_id)",
-            "This external ID already exists for this system!",
+            "unique_external_id_per_system_resource",
+            "UNIQUE(system_id, resource, external_id)",
+            "This external ID already exists for this system and resource!",
         ),
     ]
 
+    @api.model
+    def default_get(self, fields_list: list[str]) -> dict[str, Any]:
+        values = super().default_get(fields_list)
+        ctx = self.env.context or {}
+        # Robust defaults for inline one2many creation from parent forms
+        res_model = ctx.get("default_res_model") or ctx.get("active_model")
+        if "res_model" in fields_list and not values.get("res_model") and res_model:
+            values["res_model"] = res_model
+        if "resource" in fields_list and not values.get("resource"):
+            values["resource"] = "default"
+        # If coming from a specific record context, set reference hint (optional)
+        if "reference" in fields_list and not values.get("reference") and res_model and ctx.get("default_res_id"):
+            values["reference"] = f"{res_model},{ctx['default_res_id']}"
+        return values
+
     @api.model_create_multi
     def create(self, vals_list: "list[odoo.values.external_id]") -> "odoo.model.external_id":
+        # Ensure required res_model is populated even if view context omitted it
+        ctx_res_model = (self.env.context or {}).get("default_res_model") or (self.env.context or {}).get("active_model")
         for vals in vals_list:
+            if not vals.get("res_model") and ctx_res_model:
+                vals["res_model"] = ctx_res_model
+            if not vals.get("res_id") and (self.env.context or {}).get("default_res_id"):
+                vals["res_id"] = (self.env.context or {}).get("default_res_id")
+            if not vals.get("resource"):
+                vals["resource"] = "default"
             if "external_id" in vals and isinstance(vals["external_id"], str):
                 vals["external_id"] = vals["external_id"].strip()
         return super().create(vals_list)

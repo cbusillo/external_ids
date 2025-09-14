@@ -12,6 +12,11 @@ class ExternalSystemUrl(models.Model):
     active = fields.Boolean(default=True)
 
     system_id = fields.Many2one("external.system", required=True, ondelete="cascade")
+    resource = fields.Char(
+        string="Resource",
+        help="Optional: resource key (e.g., product, variant, customer, address) to select the corresponding external ID",
+        index=True,
+    )
     res_model_id = fields.Many2one(
         "ir.model",
         string="Applies To Model",
@@ -47,7 +52,7 @@ class ExternalSystemUrl(models.Model):
             if not rec.code:
                 rec.code = self._sanitize_code(rec.name)
 
-    def write(self, vals):
+    def write(self, vals: "odoo.values.external_system_url"):
         if "code" in vals and self and not self.env.context.get("allow_url_code_write"):
             # Disallow changing code outside of the rename wizard
             vals = dict(vals)

@@ -72,6 +72,7 @@
                     </notebook>
                     <group>
                         <field name="description" placeholder="Describe the purpose of this external system..."/>
+                        <field name="applicable_model_ids" widget="many2many_tags" options="{'no_create_edit': True}"/>
                     </group>
                     <notebook position="inside">
                         <page string="External IDs" name="external_ids">

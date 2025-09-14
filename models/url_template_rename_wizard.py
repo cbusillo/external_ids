@@ -10,7 +10,7 @@ class ExternalSystemUrlRenameWizard(models.TransientModel):
     new_code = fields.Char(required=True)
 
     @api.model
-    def default_get(self, fields_list):  # noqa: D401
+    def default_get(self, fields_list: list[str]) -> dict[str, str | int | bool]:
         res = super().default_get(fields_list)
         url = self.env["external.system.url"].browse(self.env.context.get("default_url_id"))
         if url:
