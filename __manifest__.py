@@ -12,6 +12,7 @@
     "license": "LGPL-3",
     "depends": ["hr", "base", "product"],
     "data": [
+        "data/external_systems.xml",
         "security/ir.model.access.csv",
         "views/menu_views.xml",
         "views/external_system_views.xml",
